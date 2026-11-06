@@ -1,0 +1,1509 @@
+<!DOCTYPE html>
+<html lang="ja" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>飼育員管理データーベース - さくら雑談王国</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        discord: {
+                            bg: '#0e1117',
+                            card: '#161b22',
+                            border: '#21262d',
+                            accent: '#5865F2',
+                            hover: '#4752C4'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .glass-panel {
+            background: rgba(22, 27, 34, 0.75);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+        /* Custom scrollbars */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0e1117; }
+        ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 9999px; }
+        ::-webkit-scrollbar-thumb:hover { background: #484f58; }
+    </style>
+</head>
+<body class="bg-[#0e1117] text-slate-100 min-h-screen selection:bg-indigo-500 selection:text-white relative pb-16">
+
+    <!-- Ambient Glowing Background Bubbles -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none z-0">
+        <div class="absolute -top-40 -left-40 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl"></div>
+        <div class="absolute top-1/3 -right-40 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl"></div>
+        <div class="absolute -bottom-40 left-1/3 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl"></div>
+    </div>
+
+    <!-- Header Navigation -->
+    <header class="sticky top-0 z-30 glass-panel border-b border-slate-800/80 shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                
+                <!-- Logo & Title -->
+                <div class="flex items-center space-x-3">
+                    <div class="p-2.5 bg-gradient-to-tr from-indigo-600 to-purple-600 rounded-xl shadow-lg shadow-indigo-500/20">
+                        <i class="fa-solid fa-shield-halved text-xl text-white"></i>
+                    </div>
+                    <div>
+                        <h1 className="text-xl font-bold bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-transparent">
+                            飼育員管理データーベース
+                        </h1>
+                        <p className="text-xs text-slate-400 flex items-center gap-1.5 mt-0.5">
+                            <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                            <span id="totalCountBadge">🌸さくら雑談王国</span>
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Global Action Buttons -->
+                <div class="flex items-center flex-wrap gap-2">
+                    <label class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg border border-slate-700/80 transition cursor-pointer shadow-sm">
+                        <i class="fa-solid fa-upload"></i>
+                        <span>インポート</span>
+                        <input type="file" id="jsonFileInput" accept=".json" class="hidden" onchange="handleFileUpload(event)">
+                    </label>
+
+                    <button onclick="copyJSON()" class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg border border-slate-700/80 transition shadow-sm">
+                        <i class="fa-solid fa-copy"></i>
+                        <span>JSONコピー</span>
+                    </button>
+
+                    <button onclick="downloadJSON()" class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg border border-slate-700/80 transition shadow-sm">
+                        <i class="fa-solid fa-download"></i>
+                        <span>保存</span>
+                    </button>
+
+                    <button onclick="openEditModal()" class="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-lg shadow-md shadow-indigo-500/25 transition active:scale-95">
+                        <i class="fa-solid fa-user-plus"></i>
+                        <span>新規追加</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Section -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6 relative z-10">
+
+        <!-- Controls & Filter Toolbar -->
+        <div class="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 backdrop-blur-sm shadow-xl mb-6">
+            <div class="flex flex-col lg:flex-row gap-4 justify-between lg:items-center">
+                
+                <!-- Search Input -->
+                <div class="relative flex-1 max-w-lg">
+                    <i class="fa-solid fa-magnifying-glass text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 text-xs"></i>
+                    <input
+                        type="text"
+                        id="searchInput"
+                        oninput="renderCards()"
+                        placeholder="名前, UserID, Username, 役職, 退任理由で検索..."
+                        class="w-full pl-9 pr-8 py-2 bg-slate-950/80 border border-slate-800 rounded-xl text-xs focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-slate-200 placeholder-slate-500 transition"
+                    >
+                </div>
+
+                <!-- Filter Segment Buttons & Role Dropdown -->
+                <div class="flex flex-wrap items-center gap-3 text-xs">
+                    <div class="flex bg-slate-950/80 p-1 rounded-xl border border-slate-800">
+                        <button id="filterAllBtn" onclick="setStatusFilter('all')" class="px-3 py-1.5 rounded-lg transition font-medium bg-slate-800 text-white shadow-sm">
+                            すべて (<span id="cntAll">0</span>)
+                        </button>
+                        <button id="filterActiveBtn" onclick="setStatusFilter('active')" class="px-3 py-1.5 rounded-lg transition font-medium text-slate-400 hover:text-slate-200">
+                            <i class="fa-solid fa-user-check text-emerald-400 mr-1"></i>
+                            現役 (<span id="cntActive">0</span>)
+                        </button>
+                        <button id="filterRetiredBtn" onclick="setStatusFilter('retired')" class="px-3 py-1.5 rounded-lg transition font-medium text-slate-400 hover:text-slate-200">
+                            <i class="fa-solid fa-user-xmark text-rose-400 mr-1"></i>
+                            退任 (<span id="cntRetired">0</span>)
+                        </button>
+                    </div>
+
+                    <!-- Role Filter -->
+                    <select
+                        id="roleSelect"
+                        onchange="renderCards()"
+                        class="bg-slate-950/80 border border-slate-800 text-slate-300 text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500 appearance-none pr-8 cursor-pointer"
+                    >
+                        <option value="all">すべての役職</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Members Grid Container -->
+        <div id="membersContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            <!-- Dynamically populated -->
+        </div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="hidden text-center py-20 rounded-2xl border border-slate-800 bg-slate-900/30 backdrop-blur-sm">
+            <i class="fa-solid fa-user-slash text-4xl text-slate-600 mb-3"></i>
+            <h3 class="text-base font-semibold text-slate-400">該当するメンバーが見つかりません</h3>
+            <p class="text-xs text-slate-500 mt-1">検索キーワードやフィルター条件を変更してください。</p>
+        </div>
+    </main>
+
+    <!-- MEMBER DETAIL MODAL -->
+    <div id="detailModal" class="fixed inset-0 z-40 bg-slate-950/80 backdrop-blur-md hidden items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl relative my-8" onclick="event.stopPropagation()">
+            
+            <!-- Header Banner -->
+            <div className="relative bg-gradient-to-r from-indigo-900/60 via-purple-900/40 to-slate-900 p-6 border-b border-slate-800">
+                <button onclick="closeDetailModal()" class="absolute top-4 right-4 p-2 text-slate-400 hover:text-white bg-slate-950/50 hover:bg-slate-800 rounded-full transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+
+                <div class="flex flex-col sm:flex-row items-center sm:items-start gap-5 p-6 border-b border-slate-800 bg-gradient-to-r from-indigo-900/40 via-purple-900/30 to-slate-900">
+                    <img id="detailAvatar" src="" class="w-20 h-20 rounded-2xl ring-4 ring-slate-800 object-cover bg-slate-800 shadow-xl" onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'">
+                    <div class="text-center sm:text-left">
+                        <div class="flex flex-wrap items-center justify-center sm:justify-start gap-2 mb-1">
+                            <h2 id="detailName" class="text-2xl font-bold text-white"></h2>
+                            <span id="detailRoleBadge" class="px-2.5 py-0.5 text-xs font-semibold rounded-md border"></span>
+                        </div>
+                        <p id="detailId" class="text-xs text-slate-400 font-mono"></p>
+
+                        <div class="mt-3 flex flex-wrap gap-2 justify-center sm:justify-start">
+                            <span id="detailStatusPill" class="px-2.5 py-1 text-xs rounded-full font-medium flex items-center gap-1.5"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Content Body -->
+            <div class="p-6 space-y-6 max-h-[60vh] overflow-y-auto text-xs">
+                <!-- Accounts -->
+                <div>
+                    <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                        <i class="fa-brands fa-discord text-indigo-400 text-sm"></i>
+                        Discord アカウント情報
+                    </h3>
+                    <div id="detailAccountsList" class="space-y-2"></div>
+                </div>
+
+                <!-- Terms -->
+                <div>
+                    <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                        <i class="fa-solid fa-award text-purple-400 text-sm"></i>
+                        モデレーター就任履歴
+                    </h3>
+                    <div id="detailTermsList" class="space-y-2"></div>
+                </div>
+
+                <!-- Retirement -->
+                <div id="detailRetirementSection" class="hidden">
+                    <h3 class="text-xs font-semibold text-rose-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                        <i class="fa-solid fa-circle-exclamation text-sm"></i>
+                        退任理由・詳細
+                    </h3>
+                    <div id="detailRetirementReason" class="p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-xs text-rose-200 leading-relaxed"></div>
+                </div>
+            </div>
+
+            <!-- Footer Actions -->
+            <div class="p-4 bg-slate-950 border-t border-slate-800 flex items-center justify-between">
+                <button id="detailDeleteBtn" class="px-3 py-2 text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-lg transition">
+                    <i class="fa-solid fa-trash-can mr-1"></i> 削除
+                </button>
+                <div class="flex gap-2">
+                    <button onclick="closeDetailModal()" class="px-4 py-2 text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition">
+                        閉じる
+                    </button>
+                    <button id="detailEditBtn" class="px-4 py-2 text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-xl transition flex items-center gap-1.5 shadow-md shadow-indigo-600/30">
+                        <i class="fa-solid fa-pen-to-square"></i> 編集する
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- EDIT / ADD MODAL -->
+    <div id="editModal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md hidden items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl my-8" onclick="event.stopPropagation()">
+            <div class="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950">
+                <h3 id="editModalTitle" class="text-base font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-pen-to-square text-indigo-400"></i>
+                    <span>メンバー情報の編集</span>
+                </h3>
+                <button onclick="closeEditModal()" class="p-1 text-slate-400 hover:text-white rounded-lg">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <div class="p-6 space-y-5 max-h-[75vh] overflow-y-auto text-xs">
+                <!-- Basic Info -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-slate-400 font-medium mb-1">ID (識別キー)</label>
+                        <input type="text" id="editPersonId" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-indigo-500 font-mono">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 font-medium mb-1">表示名 (Name)</label>
+                        <input type="text" id="editPersonName" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 font-medium mb-1">役職 (Role)</label>
+                        <input type="text" id="editPersonRole" placeholder="鯖主, 副鯖主, 飼育員, 風紀員..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 font-medium mb-1">ステータス (Status)</label>
+                        <select id="editPersonStatus" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-indigo-500 cursor-pointer">
+                            <option value="active">現役 (active)</option>
+                            <option value="retired">退任 (retired)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Accounts Section -->
+                <div class="border-t border-slate-800 pt-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <label class="text-slate-300 font-semibold">Discord アカウント情報</label>
+                        <button type="button" onclick="addAccountRow()" class="text-indigo-400 hover:text-indigo-300 text-xs flex items-center gap-1">
+                            <i class="fa-solid fa-plus"></i> アカウント追加
+                        </button>
+                    </div>
+                    <div id="editAccountsContainer" class="space-y-3"></div>
+                </div>
+
+                <!-- Terms Section -->
+                <div class="border-t border-slate-800 pt-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <label class="text-slate-300 font-semibold">就任期・期間データ</label>
+                        <button type="button" onclick="addTermRow()" class="text-indigo-400 hover:text-indigo-300 text-xs flex items-center gap-1">
+                            <i class="fa-solid fa-plus"></i> 期を追加
+                        </button>
+                    </div>
+                    <div id="editTermsContainer" class="space-y-3"></div>
+                </div>
+
+                <!-- Retirement Reason -->
+                <div class="border-t border-slate-800 pt-4">
+                    <label class="block text-slate-300 font-semibold mb-1">退任理由 / 備考</label>
+                    <textarea id="editRetirementReason" rows="3" placeholder="退任理由や特記事項を入力..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-indigo-500"></textarea>
+                </div>
+            </div>
+
+            <div class="p-4 bg-slate-950 border-t border-slate-800 flex items-center justify-end gap-2">
+                <button type="button" onclick="closeEditModal()" class="px-4 py-2 text-xs text-slate-400 hover:text-slate-200 rounded-xl transition">
+                    キャンセル
+                </button>
+                <button type="button" onclick="savePerson()" class="px-5 py-2 text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-xl transition shadow-md shadow-indigo-600/30 flex items-center gap-1.5">
+                    <i class="fa-solid fa-check"></i>
+                    変更を保存
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Banner Container -->
+    <div id="toast" class="fixed bottom-6 right-6 z-50 hidden px-4 py-3 rounded-xl shadow-2xl border backdrop-blur-md items-center gap-2 text-xs font-medium bg-slate-900/90 text-slate-200 border-slate-700">
+        <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400"></i>
+        <span id="toastMsg">通知メッセージ</span>
+    </div>
+
+    <!-- JavaScript Data Logic -->
+    <script>
+        // Initial Dataset
+        let rawData = {
+          "persons": [
+            {
+              "id": "hato3n",
+              "name": "はと",
+              "currentRole": "鯖主",
+              "status": "active",
+              "accounts": [
+                {
+                  "id": "1208358513580052500",
+                  "username": "@hato3n",
+                  "type": "main",
+                  "icon": "https://cdn.discordapp.com/avatars/1208358513580052500/6ce90546ed141393c0e38b7afb4845a6.png"
+                },
+                {
+                  "id": "1237573704683229215",
+                  "username": "@sakurazatsudan",
+                  "type": "sub",
+                  "icon": "https://cdn.discordapp.com/avatars/1237573704683229215/4e1efbca4af0fd358eb160e026ad24b1.png"
+                }
+              ],
+              "moderatorTerms": [
+                {
+                  "term": 1,
+                  "periods": [{ "start": "2024-03-07", "end": null }]
+                }
+              ],
+              "retirementReason": null
+            },
+            {
+              "id": "wataamee_777",
+              "name": "わたあめえ",
+              "currentRole": "副鯖主",
+              "status": "active",
+              "accounts": [
+                {
+                  "id": "1099098129338466385",
+                  "username": "@wataamee_777",
+                  "type": "main",
+                  "icon": "https://cdn.discordapp.com/avatars/1099098129338466385/77e7e6a9bf6d886ebb971fcdc5ec92b6.png"
+                },
+                {
+                  "id": "1426111997212360705",
+                  "username": "@wataamee777",
+                  "type": "sub",
+                  "icon": "https://cdn.discordapp.com/avatars/1426111997212360705/590b1b17aaba8e7923599118f0312be9.png"
+                }
+              ],
+              "moderatorTerms": [
+                {
+                  "term": 1,
+                  "periods": [{ "start": "2024-03-07", "end": null }]
+                }
+              ],
+              "retirementReason": null
+            },
+            {
+              "id": "deleted_user1488.",
+              "name": "Acqua",
+              "currentRole": "飼育員",
+              "status": "retired",
+              "accounts": [
+                {
+                  "id": "927237954152329307",
+                  "username": "@deleted_user1488.",
+                  "type": "main",
+                  "icon": "https://cdn.discordapp.com/avatars/927237954152329307/9a688a2867f98f49429c4e5a800df088.png"
+                },
+                {
+                  "id": "1094043504298180728",
+                  "username": "@tototomono",
+                  "type": "sub",
+                  "icon": "https://cdn.discordapp.com/avatars/1094043504298180728/752eec3d8b9dc08682d2068c1563b1c8.png"
+                }
+              ],
+              "moderatorTerms": [
+                {
+                  "term": 2,
+                  "periods": [{ "start": "2024-04-25", "end": "2025-11-21" }]
+                }
+              ],
+              "retirementReason": "不明"
+            },
+            {
+              "id": "_.rowen.",
+              "name": "氷河＠奈落＠わっふる",
+              "currentRole": "飼育員",
+              "status": "retired",
+              "accounts": [
+                {
+                  "id": "706464536944705557",
+                  "username": "@_.rowen.",
+                  "type": "main",
+                  "icon": "https://cdn.discordapp.com/avatars/706464536944705557/c10de36a3fb1f1cabca4f5fc2cd1c1f3.png"
+                }
+              ],
+              "moderatorTerms": [
+                {
+                  "term": 2,
+                  "periods": [{ "start": "2024-04-25", "end": "2025-04-30" }]
+                },
+                {
+                  "term": 2,
+                  "periods": [{ "start": "2025-05-06", "end": "2025-07-15" }]
+                }
+              ],
+              "retirementReason": "方向性の違いから自主退任"
+            },
+            {
+              "id": "Deleted User(2)",
+              "name": "雄ロン",
+              "currentRole": "飼育員",
+              "status": "retired",
+              "accounts": [
+                {
+                  "id": "456226577798135808",
+                  "username": "@Deleted User",
+                  "type": "main",
+                  "icon": "https://cdn.discordapp.com/embed/avatars/3.png"
+                }
+              ],
+              "moderatorTerms": [
+                {
+                  "term": 1,
+                  "periods": [{ "start": "2024-03-07", "end": null }]
+                }
+              ],
+              "retirementReason": "不明"
+            },
+            {
+              "id": "masyu_50377",
+              "name": "moonlight",
+              "currentRole": "副鯖主",
+              "status": "retired",
+              "accounts": [
+                {
+                  "id": "1158734375203123231",
+                  "username": "@masyu_50377",
+                  "type": "main",
+                  "icon": "https://cdn.discordapp.com/avatars/1158734375203123231/25e14db06dd25c247811175a77890df8.png"
+                }
+              ],
+              "moderatorTerms": [
+                {
+                  "term": 1,
+                  "periods": [{ "start": "2024-03-07", "end": "2024-09-23" }]
+                }
+              ],
+              "retirementReason": "不明"
+            },
+            {
+              "id": "Deleted User",
+              "name": "さくら",
+              "currentRole": "鯖主",
+              "status": "retired",
+              "accounts": [
+                {
+                  "id": "456226577798135808",
+                  "username": "@Deleted User",
+                  "type": "main",
+                  "icon": "https://cdn.discordapp.com/embed/avatars/3.png"
+                },
+                {
+                  "id": "1381623544609378404",
+                  "username": "@kisakunakisa",
+                  "type": "sub",
+                  "icon": "https://cdn.discordapp.com/avatars/1381623544609378404/14155b277e6dfb4e3833747309ffa931.png"
+                }
+              ],
+              "moderatorTerms": [
+                {
+                  "term": 1,
+                  "periods": [{ "start": "2024-02-19", "end": "2024-03-12" }]
+                }
+              ],
+              "retirementReason": "病んだのか飽きたのか交代(現在は鯖民として復活)"
+            },
+            {
+              "id": "ryu_440",
+              "name": "志歩",
+              "currentRole": "飼育員",
+              "status": "retired",
+              "accounts": [
+                {
+                  "id": "1192061786892021780",
+                  "username": "@ryu_440",
+                  "type": "main",
+                  "icon": "https://cdn.discordapp.com/avatars/1192061786892021780/b83785c242369cd46f4243250cef1dd8.png"
+                }
+              ],
+              "moderatorTerms": [
+                {
+                  "term": 2,
+                  "periods": [{ "start": "2024-04-25", "end": "2025-11-21" }]
+                }
+              ],
+              "retirementReason": "不明(確か喧嘩...？)"
+            },
+            {
+              "id": "syuu0386",
+              "name": "かーびぃ",
+              "currentRole": "飼育員",
+              "status": "active",
+              "accounts": [
+                {
+                  "id": "1208333117950263347",
+                  "username": "@syuu0386",
+                  "type": "main",
+                  "icon": "https://cdn.discordapp.com/avatars/1208333117950263347/299cae29841f9c76cceb5b1889988455.png"
+                },
+                {
+                  "id": "1281500772500242466",
+                  "username": "@giga_makimaki",
+                  "type": "sub",
+                  "icon": "https://cdn.discordapp.com/avatars/1281500772500242466/c627b81d6052083308ffe0c42077e480.png"
+                }
+              ],
+              "moderatorTerms": [
+                {
+                  "term": 2,
+                  "periods": [{ "start": "2024-04-25", "end": "2025-11-21" }]
+                },
+                {
+                  "term": 7,
+                  "periods": [{ "start": "2026-08-19", "end": null }]
+                }
+              ],
+              "retirementReason": null
+            },
+            {
+              "id": "karaage.oic",
+              "name": "as㌨",
+              "currentRole": "飼育員",
+              "status": "retired",
+              "accounts": [
+                {
+                  "id": "1071546533369094324",
+                  "username": "@karaage.oic",
+                  "type": "main",
+                  "icon": "https://cdn.discordapp.com/avatars/1071546533369094324/1058d0bc1f22133ba7225a815b24f770.png"
+                }
+              ],
+              "moderatorTerms": [
+                {
+                  "term": 2,
+                  "periods": [{ "start": "2024-04-25", "end": null }]
+                }
+              ],
+              "retirementReason": "不明(追跡不能のため退任日不明)"
+            },
+            {
+              "id": "marshall34329",
+              "name": "マーシャル先生",
+              "currentRole": "飼育員",
+              "status": "retired",
+              "accounts": [
+                {
+                  "id": "840218968018387014",
+                  "username": "@marshall34329",
+                  "type": "main",
+                  "icon": "https://cdn.discordapp.com/avatars/840218968018387014/1d61c2841b875d81abba17f821243b66.png"
+                }
+              ],
+              "moderatorTerms": [
+                {
+                  "term": 3,
+                  "periods": [{ "start": "2024-08-08", "end": null }]
+                }
+              ],
+              "retirementReason": "多忙？(またまた退任日不明)"
+            },
+            {
+              "id": "ojou2365",
+              "name": "Lao",
+              "currentRole": "飼育員",
+              "status": "retired",
+              "accounts": [
+                {
+                  "id": "1036090691383726122",
+                  "username": "@ojou2365",
+                  "type": "main",
+                  "icon": "https://cdn.discordapp.com/avatars/1036090691383726122/c665973c44365001c138891294e5f583.png"
+                }
+              ],
+              "moderatorTerms": [
+                {
+                  "term": 3,
+                  "periods": [{ "start": "2024-08-08", "end": null }]
+                }
+              ],
+              "retirementReason": "不明"
+            },
+            {
+              "id": "kakeru_gotouma",
+              "name": "架流さん/Povo43",
+              "currentRole": "風紀員",
+              "status": "active",
+              "accounts": [
+                {
+                  "id": "1185085957838471208",
+                  "username": "@kakeru_gotouma",
+                  "type": "main",
+                  "icon": "https://cdn.discordapp.com/avatars/1185085957838471208/9809151d539f9273fbb5f6e4cbe2209a.png"
+                }
+              ],
+              "moderatorTerms": [
+                {
+                  "term": 4,
+                  "periods": [{ "start": "2024-10-10", "end": null }]
+                }
+              ],
+              "retirementReason": null
+            },
+            {
+              "id": "dlc777_tech",
+              "name": "Technity_Logical",
+              "currentRole": "飼育員",
+              "status": "active",
+              "accounts": [
+                {
+                  "id": "1205901901632381082",
+                  "username": "@dlc777_tech",
+                  "type": "main",
+                  "icon": "https://cdn.discordapp.com/avatars/1205901901632381082/a2898e75d83de01d4a9790464747f9e1.png"
+                }
+              ],
+              "moderatorTerms": [
+                {
+                  "term": 4,
+                  "periods": [{ "start": "2024-10-10", "end": null }]
+                }
+              ],
+              "retirementReason": null
+            },
+            {
+              "id": "noix_art25713",
+              "name": "はじっこぽてと",
+              "currentRole": "飼育員",
+              "status": "retired",
+              "accounts": [
+                {
+                  "id": "1150684199045566576",
+                  "username": "@noix_art25713",
+                  "type": "main",
+                  "icon": "https://cdn.discordapp.com/avatars/1150684199045566576/2efc3370a63725fc97c457c4d0930442.png"
+                }
+              ],
+              "moderatorTerms": [
+                {
+                  "term": 4,
+                  "periods": [{ "start": "2024-10-10", "end": null }]
+                }
+              ],
+              "retirementReason": "不明"
+            },
+            {
+              "id": "hatosabure0333",
+              "name": "角砂糖(はとさぶれ)",
+              "currentRole": "飼育員",
+              "status": "active",
+              "accounts": [
+                {
+                  "id": "1344436127343579309",
+                  "username": "@hatosabure0333",
+                  "type": "main",
+                  "icon": "https://cdn.discordapp.com/avatars/1344436127343579309/c2ec426628a1e6b1e0261caf98260503.png"
+                }
+              ],
+              "moderatorTerms": [
+                {
+                  "term": 5,
+                  "periods": [{ "start": "2025-02-03", "end": null }]
+                }
+              ],
+              "retirementReason": null
+            },
+            {
+              "id": "senpuukl",
+              "name": "神鳥の夜空",
+              "currentRole": "飼育員",
+              "status": "retired",
+              "accounts": [
+                {
+                  "id": "1009061305535180871",
+                  "username": "@senpuukl",
+                  "type": "main",
+                  "icon": "https://cdn.discordapp.com/avatars/1009061305535180871/34ecf010ea841a04aaf2bd2bdf17feac.png"
+                }
+              ],
+              "moderatorTerms": [
+                {
+                  "term": 5,
+                  "periods": [{ "start": "2025-02-03", "end": null }]
+                }
+              ],
+              "retirementReason": "不祥事により解任(その前に自主退任した)"
+            },
+            {
+              "id": "yuutan_yuki",
+              "name": "! ゆぅたん",
+              "currentRole": "風紀員",
+              "status": "retired",
+              "accounts": [
+                {
+                  "id": "1343054861243256897",
+                  "username": "@yuutan_yuki",
+                  "type": "main",
+                  "icon": "https://cdn.discordapp.com/avatars/1343054861243256897/dac4064b3b6c6b9f357c152f702978a6.png"
+                },
+                {
+                  "id": "1200634619406602390",
+                  "username": "@yuki2108.",
+                  "type": "sub",
+                  "icon": "https://cdn.discordapp.com/avatars/1200634619406602390/e2483e8571097829c3208c940e1ae56d.png"
+                }
+              ],
+              "moderatorTerms": [
+                {
+                  "term": 5,
+                  "periods": [{ "start": "2025-02-03", "end": null }]
+                }
+              ],
+              "retirementReason": "色々あった"
+            },
+            {
+              "id": "harutar._marshall0712",
+              "name": "Marshall",
+              "currentRole": "風紀員",
+              "status": "active",
+              "accounts": [
+                {
+                  "id": "1089222363238912152",
+                  "username": "@harutar._marshall0712",
+                  "type": "main",
+                  "icon": "https://cdn.discordapp.com/avatars/1089222363238912152/7cf5ce3341d41ed4d2f97b5b915364a8.png"
+                }
+              ],
+              "moderatorTerms": [
+                {
+                  "term": 6,
+                  "periods": [{ "start": "2025-11-30", "end": null }]
+                }
+              ],
+              "retirementReason": null
+            },
+            {
+              "id": "susu425",
+              "name": "よっつん",
+              "currentRole": "飼育員",
+              "status": "active",
+              "accounts": [
+                {
+                  "id": "780319649857929237",
+                  "username": "@susu425",
+                  "type": "main",
+                  "icon": "https://cdn.discordapp.com/avatars/780319649857929237/25734e9e7fc0538fa5228038a74e68a7.png"
+                }
+              ],
+              "moderatorTerms": [
+                {
+                  "term": 6,
+                  "periods": [{ "start": "2025-11-30", "end": null }]
+                }
+              ],
+              "retirementReason": null
+            },
+            {
+              "id": "conan_edogawa_0504",
+              "name": "くうかい",
+              "currentRole": "飼育員",
+              "status": "active",
+              "accounts": [
+                {
+                  "id": "1274690476041179232",
+                  "username": "@conan_edogawa_0504",
+                  "type": "main",
+                  "icon": "https://cdn.discordapp.com/avatars/1274690476041179232/91324ced0c2f9023c7578d650b1b3bd8.png"
+                }
+              ],
+              "moderatorTerms": [
+                {
+                  "term": 6,
+                  "periods": [{ "start": "2025-11-30", "end": null }]
+                }
+              ],
+              "retirementReason": null
+            },
+            {
+              "id": "pcp.09",
+              "name": "ぴこ",
+              "currentRole": "飼育員",
+              "status": "active",
+              "accounts": [
+                {
+                  "id": "1422186145801965682",
+                  "username": "@pcp.09",
+                  "type": "main",
+                  "icon": "https://cdn.discordapp.com/avatars/1422186145801965682/adb4319ec99f6db263a8f4f4e1ada2e1.png"
+                }
+              ],
+              "moderatorTerms": [
+                {
+                  "term": 6,
+                  "periods": [{ "start": "2025-11-30", "end": null }]
+                }
+              ],
+              "retirementReason": null
+            },
+            {
+              "id": "a0b4t0_2011",
+              "name": "あおばと",
+              "currentRole": "飼育員",
+              "status": "active",
+              "accounts": [
+                {
+                  "id": "1150212548847730789",
+                  "username": "@a0b4t0_2011",
+                  "type": "main",
+                  "icon": "https://cdn.discordapp.com/avatars/1150212548847730789/2c58632a793dbcb693a55f382d126d3a.png"
+                }
+              ],
+              "moderatorTerms": [
+                {
+                  "term": 6,
+                  "periods": [{ "start": "2025-11-30", "end": null }]
+                }
+              ],
+              "retirementReason": null
+            },
+            {
+              "id": "6gjp",
+              "name": "ベンジリー",
+              "currentRole": "飼育員",
+              "status": "active",
+              "accounts": [
+                {
+                  "id": "1160095924324937849",
+                  "username": "@6gjp",
+                  "type": "main",
+                  "icon": "https://cdn.discordapp.com/avatars/1160095924324937849/ac441999ad1fc312502fb05706235198.png"
+                }
+              ],
+              "moderatorTerms": [
+                {
+                  "term": 7,
+                  "periods": [{ "start": "2026-08-19", "end": null }]
+                }
+              ],
+              "retirementReason": null
+            },
+            {
+              "id": "yonaha0",
+              "name": "与那覇",
+              "currentRole": "飼育員",
+              "status": "active",
+              "accounts": [
+                {
+                  "id": "1160552148237549569",
+                  "username": "@yonaha0",
+                  "type": "main",
+                  "icon": "https://cdn.discordapp.com/avatars/1160552148237549569/686ce992aa0fa94f6953ede58915019e.png"
+                }
+              ],
+              "moderatorTerms": [
+                {
+                  "term": 7,
+                  "periods": [{ "start": "2026-08-19", "end": null }]
+                }
+              ],
+              "retirementReason": null
+            },
+            {
+              "id": "Deleted User(1)",
+              "name": "イルミナ",
+              "currentRole": "飼育員",
+              "status": "retired",
+              "accounts": [
+                {
+                  "id": "456226577798135808",
+                  "username": "@Deleted User",
+                  "type": "main",
+                  "icon": "https://cdn.discordapp.com/embed/avatars/3.png"
+                }
+              ],
+              "moderatorTerms": [
+                {
+                  "term": 2,
+                  "periods": [{ "start": "2024-04-25", "end": null }]
+                }
+              ],
+              "retirementReason": "リアルが多忙？(その後不祥事発見)"
+            }
+          ]
+        };
+
+        // App State
+        let currentPersons = [...rawData.persons];
+        let currentStatusFilter = 'all';
+        let activeEditingId = null;
+
+        // Initialize UI
+        window.onload = function() {
+            populateRoleDropdown();
+            updateCounts();
+            renderCards();
+        };
+
+        // Notification Toast
+        function showToast(msg, type = 'success') {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toastMsg');
+            const toastIcon = document.getElementById('toastIcon');
+
+            toastMsg.innerText = msg;
+            if (type === 'error') {
+                toastIcon.className = "fa-solid fa-triangle-exclamation text-rose-400";
+            } else {
+                toastIcon.className = "fa-solid fa-circle-check text-emerald-400";
+            }
+
+            toast.classList.remove('hidden');
+            toast.classList.add('flex');
+
+            setTimeout(() => {
+                toast.classList.add('hidden');
+                toast.classList.remove('flex');
+            }, 3000);
+        }
+
+        // Color helper for Role badges
+        function getRoleBadgeClass(role) {
+            switch(role) {
+                case '鯖主':
+                    return 'bg-gradient-to-r from-amber-500/20 to-yellow-500/20 text-yellow-300 border-yellow-500/40 shadow-yellow-500/10';
+                case '副鯖主':
+                    return 'bg-gradient-to-r from-purple-500/20 to-indigo-500/20 text-purple-300 border-purple-500/40 shadow-purple-500/10';
+                case '風紀員':
+                    return 'bg-gradient-to-r from-blue-500/20 to-cyan-500/20 text-cyan-300 border-cyan-500/40 shadow-cyan-500/10';
+                case '飼育員':
+                    return 'bg-gradient-to-r from-emerald-500/20 to-teal-500/20 text-emerald-300 border-emerald-500/40 shadow-emerald-500/10';
+                default:
+                    return 'bg-slate-800 text-slate-300 border-slate-700';
+            }
+        }
+
+        // Populate unique roles to select option
+        function populateRoleDropdown() {
+            const select = document.getElementById('roleSelect');
+            const roles = Array.from(new Set(currentPersons.map(p => p.currentRole)));
+            
+            // clear dynamic options
+            select.innerHTML = '<option value="all">すべての役職</option>';
+            roles.forEach(role => {
+                const opt = document.createElement('option');
+                opt.value = role;
+                opt.innerText = role;
+                select.appendChild(opt);
+            });
+        }
+
+        function updateCounts() {
+            document.getElementById('totalCountBadge').innerText = `全 ${currentPersons.length} 名の運営経歴データベース`;
+            document.getElementById('cntAll').innerText = currentPersons.length;
+            document.getElementById('cntActive').innerText = currentPersons.filter(p => p.status === 'active').length;
+            document.getElementById('cntRetired').innerText = currentPersons.filter(p => p.status === 'retired').length;
+        }
+
+        function setStatusFilter(status) {
+            currentStatusFilter = status;
+            
+            // Toggle active classes
+            const allBtn = document.getElementById('filterAllBtn');
+            const activeBtn = document.getElementById('filterActiveBtn');
+            const retiredBtn = document.getElementById('filterRetiredBtn');
+
+            [allBtn, activeBtn, retiredBtn].forEach(b => b.className = "px-3 py-1.5 rounded-lg transition font-medium text-slate-400 hover:text-slate-200");
+
+            if (status === 'all') {
+                allBtn.className = "px-3 py-1.5 rounded-lg transition font-medium bg-slate-800 text-white shadow-sm";
+            } else if (status === 'active') {
+                activeBtn.className = "px-3 py-1.5 rounded-lg transition font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/30";
+            } else if (status === 'retired') {
+                retiredBtn.className = "px-3 py-1.5 rounded-lg transition font-medium bg-rose-500/20 text-rose-300 border border-rose-500/30";
+            }
+
+            renderCards();
+        }
+
+        // Render Cards Grid
+        function renderCards() {
+            const container = document.getElementById('membersContainer');
+            const emptyState = document.getElementById('emptyState');
+            const search = document.getElementById('searchInput').value.toLowerCase().trim();
+            const roleFilter = document.getElementById('roleSelect').value;
+
+            const filtered = currentPersons.filter(p => {
+                // Status Filter
+                if (currentStatusFilter !== 'all' && p.status !== currentStatusFilter) return false;
+                // Role Filter
+                if (roleFilter !== 'all' && p.currentRole !== roleFilter) return false;
+
+                // Search Filter
+                if (!search) return true;
+                const matchName = p.name.toLowerCase().includes(search);
+                const matchId = p.id.toLowerCase().includes(search);
+                const matchRole = p.currentRole.toLowerCase().includes(search);
+                const matchReason = (p.retirementReason || '').toLowerCase().includes(search);
+                const matchAccounts = p.accounts.some(acc => acc.username.toLowerCase().includes(search) || acc.id.includes(search));
+
+                return matchName || matchId || matchRole || matchReason || matchAccounts;
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            } else {
+                emptyState.classList.add('hidden');
+            }
+
+            container.innerHTML = filtered.map(person => {
+                const mainAccount = person.accounts.find(a => a.type === 'main') || person.accounts[0];
+                const subAccounts = person.accounts.filter(a => a.type === 'sub');
+                const roleBadgeClass = getRoleBadgeClass(person.currentRole);
+
+                const termsHtml = person.moderatorTerms.map(t => `
+                    <div class="flex items-center justify-between text-slate-300 bg-slate-950/40 px-2.5 py-1 rounded-lg">
+                        <span class="font-medium text-indigo-400">第 ${t.term} 期</span>
+                        <span class="font-mono text-[11px] text-slate-400">
+                            ${t.periods ? t.periods.map(p => `${p.start} ~ ${p.end || '現在'}`).join(', ') : ''}
+                        </span>
+                    </div>
+                `).join('');
+
+                const subBadgesHtml = subAccounts.map(s => `
+                    <span class="inline-flex items-center gap-1 text-[11px] bg-slate-950/80 border border-slate-800 text-slate-400 px-2 py-0.5 rounded-md">
+                        <span class="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
+                        サブ: ${s.username}
+                    </span>
+                `).join('');
+
+                return `
+                    <div 
+                        onclick="openDetailModal('${person.id}')"
+                        class="group relative bg-slate-900/70 hover:bg-slate-900/90 border border-slate-800/90 hover:border-indigo-500/50 rounded-2xl p-5 transition-all duration-200 shadow-lg hover:shadow-indigo-500/10 cursor-pointer flex flex-col justify-between"
+                    >
+                        <div>
+                            <!-- Header Info -->
+                            <div class="flex items-start justify-between gap-3 mb-4">
+                                <div class="relative">
+                                    <img 
+                                        src="${mainAccount?.icon || ''}" 
+                                        alt="${person.name}"
+                                        onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'"
+                                        class="w-14 h-14 rounded-2xl ring-2 ring-slate-800 group-hover:ring-indigo-500/50 transition object-cover bg-slate-800"
+                                    />
+                                    <span class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-slate-900 ${person.status === 'active' ? 'bg-emerald-500' : 'bg-rose-500'}"></span>
+                                </div>
+                                <div class="flex flex-col items-end gap-1.5">
+                                    <span class="px-2.5 py-1 text-xs font-semibold rounded-lg border shadow-sm ${roleBadgeClass}">
+                                        ${person.currentRole}
+                                    </span>
+                                    <span class="text-[10px] font-medium px-2 py-0.5 rounded-md ${person.status === 'active' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}">
+                                        ${person.status === 'active' ? '現役' : '退任'}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <!-- Name & User -->
+                            <div class="mb-4">
+                                <h2 class="text-lg font-bold text-slate-100 group-hover:text-indigo-300 transition flex items-center gap-2">
+                                    ${person.name}
+                                </h2>
+                                <p class="text-xs text-slate-400 font-mono mt-0.5">
+                                    ${mainAccount?.username || ''} <span class="text-slate-600">(${mainAccount?.id || ''})</span>
+                                </p>
+                                ${subAccounts.length > 0 ? `<div class="mt-2 flex flex-wrap gap-1.5">${subBadgesHtml}</div>` : ''}
+                            </div>
+
+                            <!-- Terms Summary -->
+                            <div class="space-y-1.5 border-t border-slate-800/80 pt-3 text-xs">
+                                <div class="text-[11px] text-slate-500 font-medium flex items-center gap-1">
+                                    <i class="fa-solid fa-clock text-indigo-400 text-xs"></i>
+                                    <span>担当期数・期間</span>
+                                </div>
+                                ${termsHtml}
+                            </div>
+
+                            <!-- Retirement reason preview -->
+                            ${person.status === 'retired' && person.retirementReason ? `
+                                <div class="mt-3 p-2.5 bg-rose-500/10 border border-rose-500/20 rounded-xl text-xs text-rose-300">
+                                    <div class="font-medium flex items-center gap-1 text-[11px] text-rose-400 mb-0.5">
+                                        <i class="fa-solid fa-triangle-exclamation"></i>
+                                        <span>退任理由</span>
+                                    </div>
+                                    <p class="line-clamp-2 text-slate-300">${person.retirementReason}</p>
+                                </div>
+                            ` : ''}
+                        </div>
+
+                        <!-- Card Footer -->
+                        <div class="mt-4 pt-3 border-t border-slate-800/60 flex items-center justify-between text-xs text-slate-400">
+                            <span class="hover:text-indigo-400 transition font-medium flex items-center gap-1">
+                                詳細を見る &rarr;
+                            </span>
+                            <div class="flex items-center gap-1" onclick="event.stopPropagation()">
+                                <button onclick="openEditModal('${person.id}')" class="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-indigo-400 transition">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                </button>
+                                <button onclick="deletePerson('${person.id}')" class="p-1.5 hover:bg-rose-500/20 rounded-lg text-slate-400 hover:text-rose-400 transition">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Open Detail Modal
+        function openDetailModal(id) {
+            const person = currentPersons.find(p => p.id === id);
+            if (!person) return;
+
+            const mainAccount = person.accounts.find(a => a.type === 'main') || person.accounts[0];
+
+            document.getElementById('detailAvatar').src = mainAccount?.icon || '';
+            document.getElementById('detailName').innerText = person.name;
+            document.getElementById('detailId').innerText = `ID: ${person.id}`;
+
+            const badge = document.getElementById('detailRoleBadge');
+            badge.innerText = person.currentRole;
+            badge.className = `px-2.5 py-0.5 text-xs font-semibold rounded-md border ${getRoleBadgeClass(person.currentRole)}`;
+
+            const pill = document.getElementById('detailStatusPill');
+            if (person.status === 'active') {
+                pill.className = 'px-2.5 py-1 text-xs rounded-full font-medium flex items-center gap-1.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+                pill.innerHTML = `<i class="fa-solid fa-user-check"></i> 現役`;
+            } else {
+                pill.className = 'px-2.5 py-1 text-xs rounded-full font-medium flex items-center gap-1.5 bg-rose-500/20 text-rose-300 border border-rose-500/30';
+                pill.innerHTML = `<i class="fa-solid fa-user-xmark"></i> 退任`;
+            }
+
+            // Accounts List
+            const accList = document.getElementById('detailAccountsList');
+            accList.innerHTML = person.accounts.map(acc => `
+                <div class="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+                    <div class="flex items-center gap-3">
+                        <img src="${acc.icon}" onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'" class="w-10 h-10 rounded-xl object-cover bg-slate-800">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="font-bold text-sm text-slate-200">${acc.username}</span>
+                                <span class="text-[10px] px-2 py-0.5 rounded font-medium ${acc.type === 'main' ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30' : 'bg-slate-800 text-slate-400 border border-slate-700'}">
+                                    ${acc.type === 'main' ? 'メイン垢' : 'サブ垢'}
+                                </span>
+                            </div>
+                            <p class="text-xs text-slate-500 font-mono">ID: ${acc.id}</p>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            // Terms List
+            const termsList = document.getElementById('detailTermsList');
+            termsList.innerHTML = person.moderatorTerms.map(t => `
+                <div class="p-3 bg-slate-950/60 border border-slate-800 rounded-xl">
+                    <div class="font-semibold text-sm text-indigo-400 mb-1.5">第 ${t.term} 期</div>
+                    <div class="space-y-1">
+                        ${t.periods.map(p => `
+                            <div class="text-xs flex items-center justify-between text-slate-300 font-mono bg-slate-900/60 px-2.5 py-1 rounded">
+                                <span>開始: ${p.start}</span>
+                                <span>終了: ${p.end || '就任中 (継続)'}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+
+            // Retirement Section
+            const retSection = document.getElementById('detailRetirementSection');
+            if (person.status === 'retired' && person.retirementReason) {
+                document.getElementById('detailRetirementReason').innerText = person.retirementReason;
+                retSection.classList.remove('hidden');
+            } else {
+                retSection.classList.add('hidden');
+            }
+
+            // Action Buttons Binding
+            document.getElementById('detailEditBtn').onclick = () => {
+                closeDetailModal();
+                openEditModal(person.id);
+            };
+
+            document.getElementById('detailDeleteBtn').onclick = () => {
+                closeDetailModal();
+                deletePerson(person.id);
+            };
+
+            const modal = document.getElementById('detailModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeDetailModal() {
+            const modal = document.getElementById('detailModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        // EDIT / ADD Modal Functions
+        function openEditModal(id = null) {
+            activeEditingId = id;
+            const title = document.getElementById('editModalTitle');
+
+            if (id) {
+                const person = currentPersons.find(p => p.id === id);
+                if (!person) return;
+                title.innerText = 'メンバー情報の編集';
+
+                document.getElementById('editPersonId').value = person.id;
+                document.getElementById('editPersonName').value = person.name;
+                document.getElementById('editPersonRole').value = person.currentRole;
+                document.getElementById('editPersonStatus').value = person.status;
+                document.getElementById('editRetirementReason').value = person.retirementReason || '';
+
+                renderEditAccounts(person.accounts);
+                renderEditTerms(person.moderatorTerms);
+            } else {
+                title.innerText = '新規メンバーの追加';
+                document.getElementById('editPersonId').value = `user_${Date.now()}`;
+                document.getElementById('editPersonName').value = '新規メンバー';
+                document.getElementById('editPersonRole').value = '飼育員';
+                document.getElementById('editPersonStatus').value = 'active';
+                document.getElementById('editRetirementReason').value = '';
+
+                renderEditAccounts([{
+                    id: String(Date.now()),
+                    username: '@new_user',
+                    type: 'main',
+                    icon: 'https://cdn.discordapp.com/embed/avatars/0.png'
+                }]);
+                renderEditTerms([{
+                    term: 1,
+                    periods: [{ start: new Date().toISOString().split('T')[0], end: null }]
+                }]);
+            }
+
+            const modal = document.getElementById('editModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeEditModal() {
+            const modal = document.getElementById('editModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function renderEditAccounts(accounts) {
+            const container = document.getElementById('editAccountsContainer');
+            container.innerHTML = accounts.map((acc, index) => `
+                <div class="account-row p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="font-mono text-[11px] text-slate-400">Account #${index + 1}</span>
+                        <button type="button" onclick="this.closest('.account-row').remove()" class="text-rose-400 hover:text-rose-300">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <input type="text" placeholder="ユーザー名 (@xxx)" value="${acc.username || ''}" class="acc-username bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-slate-200">
+                        <input type="text" placeholder="User ID" value="${acc.id || ''}" class="acc-id bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-slate-200 font-mono">
+                        <select class="acc-type bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-slate-200 cursor-pointer">
+                            <option value="main" ${acc.type === 'main' ? 'selected' : ''}>メイン (main)</option>
+                            <option value="sub" ${acc.type === 'sub' ? 'selected' : ''}>サブ (sub)</option>
+                        </select>
+                    </div>
+                    <input type="text" placeholder="アイコン画像URL" value="${acc.icon || ''}" class="acc-icon w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-slate-200 font-mono text-[11px]">
+                </div>
+            `).join('');
+        }
+
+        function addAccountRow() {
+            const container = document.getElementById('editAccountsContainer');
+            const div = document.createElement('div');
+            div.className = "account-row p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-2";
+            div.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <span class="font-mono text-[11px] text-slate-400">New Account</span>
+                    <button type="button" onclick="this.closest('.account-row').remove()" class="text-rose-400 hover:text-rose-300">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <input type="text" placeholder="ユーザー名 (@xxx)" value="@sub_user" class="acc-username bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-slate-200">
+                    <input type="text" placeholder="User ID" value="${Date.now()}" class="acc-id bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-slate-200 font-mono">
+                    <select class="acc-type bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-slate-200 cursor-pointer">
+                        <option value="main">メイン (main)</option>
+                        <option value="sub" selected>サブ (sub)</option>
+                    </select>
+                </div>
+                <input type="text" placeholder="アイコン画像URL" value="https://cdn.discordapp.com/embed/avatars/0.png" class="acc-icon w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-slate-200 font-mono text-[11px]">
+            `;
+            container.appendChild(div);
+        }
+
+        function renderEditTerms(terms) {
+            const container = document.getElementById('editTermsContainer');
+            container.innerHTML = terms.map((t, index) => `
+                <div class="term-row p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="text-slate-400 font-medium">第</span>
+                            <input type="number" value="${t.term || 1}" class="term-num w-16 bg-slate-900 border border-slate-800 rounded px-2 py-1 text-slate-200">
+                            <span class="text-slate-400 font-medium">期</span>
+                        </div>
+                        <button type="button" onclick="this.closest('.term-row').remove()" class="text-rose-400 hover:text-rose-300">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                    ${t.periods.map(p => `
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="text-[10px] text-slate-500 block mb-0.5">開始日 (YYYY-MM-DD)</label>
+                                <input type="text" value="${p.start || ''}" class="period-start w-full bg-slate-900 border border-slate-800 rounded px-2 py-1 text-slate-200 font-mono">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-slate-500 block mb-0.5">終了日 (空欄 = 継続中)</label>
+                                <input type="text" placeholder="null" value="${p.end || ''}" class="period-end w-full bg-slate-900 border border-slate-800 rounded px-2 py-1 text-slate-200 font-mono">
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `).join('');
+        }
+
+        function addTermRow() {
+            const container = document.getElementById('editTermsContainer');
+            const div = document.createElement('div');
+            div.className = "term-row p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-2";
+            div.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span class="text-slate-400 font-medium">第</span>
+                        <input type="number" value="1" class="term-num w-16 bg-slate-900 border border-slate-800 rounded px-2 py-1 text-slate-200">
+                        <span class="text-slate-400 font-medium">期</span>
+                    </div>
+                    <button type="button" onclick="this.closest('.term-row').remove()" class="text-rose-400 hover:text-rose-300">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="text-[10px] text-slate-500 block mb-0.5">開始日 (YYYY-MM-DD)</label>
+                        <input type="text" value="${new Date().toISOString().split('T')[0]}" class="period-start w-full bg-slate-900 border border-slate-800 rounded px-2 py-1 text-slate-200 font-mono">
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-slate-500 block mb-0.5">終了日 (空欄 = 継続中)</label>
+                        <input type="text" placeholder="null" value="" class="period-end w-full bg-slate-900 border border-slate-800 rounded px-2 py-1 text-slate-200 font-mono">
+                    </div>
+                </div>
+            `;
+            container.appendChild(div);
+        }
+
+        // Save Person
+        function savePerson() {
+            const id = document.getElementById('editPersonId').value.trim();
+            const name = document.getElementById('editPersonName').value.trim();
+            const role = document.getElementById('editPersonRole').value.trim();
+            const status = document.getElementById('editPersonStatus').value;
+            const retirementReason = document.getElementById('editRetirementReason').value.trim() || null;
+
+            if (!id || !name) {
+                showToast('IDおよび名前は必須入力項目です。', 'error');
+                return;
+            }
+
+            // Gather Accounts
+            const accRows = document.querySelectorAll('.account-row');
+            const accounts = Array.from(accRows).map(row => ({
+                id: row.querySelector('.acc-id').value.trim(),
+                username: row.querySelector('.acc-username').value.trim(),
+                type: row.querySelector('.acc-type').value,
+                icon: row.querySelector('.acc-icon').value.trim()
+            }));
+
+            // Gather Terms
+            const termRows = document.querySelectorAll('.term-row');
+            const moderatorTerms = Array.from(termRows).map(row => {
+                const termNum = parseInt(row.querySelector('.term-num').value) || 1;
+                const pStart = row.querySelector('.period-start').value.trim();
+                const pEnd = row.querySelector('.period-end').value.trim() || null;
+                return {
+                    term: termNum,
+                    periods: [{ start: pStart, end: pEnd }]
+                };
+            });
+
+            const newPersonObj = {
+                id,
+                name,
+                currentRole: role,
+                status,
+                accounts,
+                moderatorTerms,
+                retirementReason
+            };
+
+            const idx = currentPersons.findIndex(p => p.id === activeEditingId || p.id === id);
+            if (idx >= 0) {
+                currentPersons[idx] = newPersonObj;
+            } else {
+                currentPersons.unshift(newPersonObj);
+            }
+
+            populateRoleDropdown();
+            updateCounts();
+            renderCards();
+            closeEditModal();
+            showToast('メンバー情報を保存しました！');
+        }
+
+        // Delete Person
+        function deletePerson(id) {
+            currentPersons = currentPersons.filter(p => p.id !== id);
+            populateRoleDropdown();
+            updateCounts();
+            renderCards();
+            showToast('メンバーを削除しました。');
+        }
+
+        // Copy JSON
+        function copyJSON() {
+            const jsonStr = JSON.stringify({ persons: currentPersons }, null, 2);
+            const textarea = document.createElement('textarea');
+            textarea.value = jsonStr;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            showToast('JSONをクリップボードにコピーしました！');
+        }
+
+        // Download JSON File
+        function downloadJSON() {
+            const jsonStr = JSON.stringify({ persons: currentPersons }, null, 2);
+            const blob = new Blob([jsonStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `discord_moderators_${new Date().toISOString().slice(0, 10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('JSONファイルをダウンロードしました！');
+        }
+
+        // Import JSON File
+        function handleFileUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const parsed = JSON.parse(event.target.result);
+                    if (parsed.persons && Array.isArray(parsed.persons)) {
+                        currentPersons = parsed.persons;
+                    } else if (Array.isArray(parsed)) {
+                        currentPersons = parsed;
+                    } else {
+                        showToast('無効なJSONフォーマットです ("persons" 配列が必要です)', 'error');
+                        return;
+                    }
+
+                    populateRoleDropdown();
+                    updateCounts();
+                    renderCards();
+                    showToast(`${currentPersons.length} 件のメンバーデータをインポートしました！`);
+                } catch(err) {
+                    showToast('JSON読み込みエラー: ' + err.message, 'error');
+                }
+            };
+            reader.readAsText(file);
+            e.target.value = '';
+        }
+    </script>
+</body>
+</html>
